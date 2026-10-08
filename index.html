@@ -527,20 +527,38 @@
         // 배포 ID가 바뀌면 이 주소만 바꿔주면 된다.
         const API_BASE = 'https://script.google.com/macros/s/AKfycbwXKsSAps4u833yNvVu5jwQxpC0WklNLXrl3V4No-VU31mxM6RCI8dF59eWsY7y0UdE7A/exec';
 
+        // Apps Script의 exec→googleusercontent 1회용 리다이렉트가 간헐적으로(관찰상 체감
+        // 절반 정도 빈도) 실패하는 경우가 있어, 실제 오류(JSON이 아닌 응답/네트워크 실패)일 때만
+        // 짧게 두 번 더 재시도한다. 서버가 { success:false, error } 형태로 정상 응답한 "진짜 실패"는
+        // 재시도하지 않고 바로 그대로 돌려준다(무한 재시도로 오류를 감추지 않기 위함).
+        async function fetchJsonWithRetry_(doFetch, attempts) {
+            let lastErr;
+            for (let i = 0; i < (attempts || 3); i++) {
+                try {
+                    const r = await doFetch();
+                    return await r.json();
+                } catch (err) {
+                    lastErr = err;
+                    if (i < (attempts || 3) - 1) await new Promise(res => setTimeout(res, 500 * (i + 1)));
+                }
+            }
+            throw lastErr;
+        }
+
         function apiGet(action, params) {
             const qs = new URLSearchParams(Object.assign({ action }, params || {}));
-            return fetch(API_BASE + '?' + qs.toString()).then(r => r.json());
+            return fetchJsonWithRetry_(() => fetch(API_BASE + '?' + qs.toString()));
         }
 
         // 프리플라이트(OPTIONS)를 유발하면 Apps Script가 처리하지 못해 요청이 막히므로,
         // Content-Type은 반드시 text/plain(단순 요청 규격)으로 보낸다. 서버는 doPost(e)에서
         // e.postData.contents를 JSON.parse해서 읽는다.
         function apiPost(action, data) {
-            return fetch(API_BASE, {
+            return fetchJsonWithRetry_(() => fetch(API_BASE, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify(Object.assign({ action }, data || {}))
-            }).then(r => r.json());
+            }));
         }
 
         const isAdmin = !!new URLSearchParams(location.search).get('admin');
