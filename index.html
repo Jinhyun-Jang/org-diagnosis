@@ -1,61 +1,828 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>조직진단 사전 인터뷰</title>
-<style>
-  html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    overflow: hidden;
-    background: #0f172a;
-  }
-  iframe {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%;
-    height: 100%;
-    border: none;
-  }
-  #fallback {
-    position: fixed;
-    inset: 0;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    font-family: -apple-system, "Pretendard", "Malgun Gothic", sans-serif;
-    color: #e2e8f0;
-    background: #0f172a;
-  }
-  #fallback a { color: #60a5fa; margin-top: 12px; }
-</style>
-</head>
-<body>
-  <iframe
-    id="appFrame"
-    src="https://script.google.com/macros/s/AKfycbwXKsSAps4u833yNvVu5jwQxpC0WklNLXrl3V4No-VU31mxM6RCI8dF59eWsY7y0UdE7A/exec"
-    title="조직진단 사전 인터뷰"
-    allow="clipboard-write"
-  ></iframe>
-  <div id="fallback">
-    <p>화면이 보이지 않으면 아래 주소로 직접 접속해주세요.</p>
-    <a href="https://script.google.com/macros/s/AKfycbwXKsSAps4u833yNvVu5jwQxpC0WklNLXrl3V4No-VU31mxM6RCI8dF59eWsY7y0UdE7A/exec" target="_top">직접 접속하기</a>
-  </div>
-  <script>
-    // 일부 환경에서 구글 로그인 차단 등으로 프레임 로딩이 실패하면 안내문구 노출
-    setTimeout(function () {
-      try {
-        var frame = document.getElementById('appFrame');
-        if (!frame.contentWindow) {
-          document.getElementById('fallback').style.display = 'flex';
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>24번 조직진단 솔루션 시스템</title>
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@800&family=Outfit:wght@500;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1a365d;
+            --accent: #2b6cb0;
+            --bg: #f7fafc;
+            --white: #ffffff;
+            --success: #38a169;
+            --danger: #e53e3e;
+            --jh-blue: #007AFF;
         }
-      } catch (e) {
-        document.getElementById('fallback').style.display = 'flex';
-      }
-    }, 6000);
-  </script>
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: #2d3748;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 헤더+탭을 하나의 sticky 래퍼로 묶어서, 헤더 높이가 바뀌어도 탭 위치를 픽셀로
+           재계산할 필요가 없도록 한다(예전엔 tabs-container가 top:110px 하드코딩이었음). */
+        .app-header-sticky {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        header {
+            background: linear-gradient(135deg, #0c1c3d 0%, #1a365d 40%, #2b6cb0 75%, #007AFF 100%);
+            padding: 40px 20px;
+            color: #fff;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .main-title {
+            font-size: 2.1rem;
+            font-weight: 850;
+            letter-spacing: -1px;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .sub-title {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            font-weight: 400;
+            display: block;
+        }
+
+        .tabs-container {
+            background: #fff;
+            padding: 10px 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f1f5f9;
+            border-radius: 0;
+            padding: 3px;
+            gap: 2px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 5px;
+            border: none;
+            background: none;
+            font-size: 0.8rem;
+            font-weight: 850;
+            color: #64748b;
+            cursor: pointer;
+            border-radius: 0;
+            transition: 0.3s;
+        }
+
+        .tab-btn.active {
+            background: #fff;
+            color: var(--accent);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        /* 37번 프로젝트와 동일하게 데스크톱에서도 모바일 앱 폭(512px)으로 좁혀 가운데 정렬한다 -
+           지금까지는 폭 제한이 없어 데스크톱에서 화면이 과도하게 넓어 보였다. 헤더/탭 바는
+           배경이 화면 끝까지 이어지되, 그 안의 내용물만 512px로 가운데 정렬한다. */
+        .header-inner,
+        .tabs-container>.tabs,
+        .container,
+        .footer-inner {
+            max-width: 512px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .container {
+            padding: 20px;
+            flex: 1;
+        }
+
+        .report-card {
+            background: #fff;
+            border-radius: 0;
+            padding: 25px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+            border: 1px solid #e2e8f0;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .report-title {
+            font-size: 1.1rem;
+            font-weight: 850;
+            color: var(--primary);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 16px;
+            border-radius: 0;
+            border: none;
+            font-weight: 850;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: 0.3s;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(43, 108, 176, 0.2);
+        }
+
+        .btn-outline {
+            background: #fff;
+            color: var(--success);
+            border: 2px solid var(--success);
+        }
+
+        /* 표준 인트로 로딩 화면 (가이드라인 7장 준용) - 이 프로젝트는 특정 기관 CI가 아니라
+           JINHYUN.AI 자체 브랜드 앱이라, 이미지 로고 대신 워드마크 텍스트를 중앙에 두고
+           동일한 펄스 글로우 + 슬림 진행바 + 동적 상태메시지 구조를 적용한다. */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(120% 100% at 50% 15%, #16213e 0%, #0a0e1a 70%);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 22px;
+            z-index: 2000;
+            opacity: 1;
+            transition: opacity 0.35s ease;
+        }
+
+        #loader.fade-out {
+            opacity: 0;
+        }
+
+        .intro-logo {
+            font-family: 'Outfit', 'Inter', sans-serif;
+            font-size: 2.4rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: #ffffff;
+            animation: introPulseGlow 1.8s ease-in-out infinite;
+        }
+
+        .intro-logo .logo-highlight {
+            color: var(--jh-blue);
+        }
+
+        @keyframes introPulseGlow {
+
+            0%,
+            100% {
+                transform: scale(1);
+                filter: drop-shadow(0 0 6px rgba(0, 122, 255, 0.25));
+            }
+
+            50% {
+                transform: scale(1.05);
+                filter: drop-shadow(0 0 18px rgba(0, 122, 255, 0.55));
+            }
+        }
+
+        .intro-sub {
+            font-family: 'Outfit', 'Inter', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 500;
+            letter-spacing: 3px;
+            color: #7b8bb0;
+            text-transform: uppercase;
+            margin-top: -14px;
+        }
+
+        .intro-progress-track {
+            width: 280px;
+            max-width: 70vw;
+            height: 4px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.12);
+            overflow: hidden;
+        }
+
+        .intro-progress-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #007AFF, #4facfe);
+            transition: width 0.25s ease-out;
+        }
+
+        #loader-msg {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #9aa8c7;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .staff-card {
+            background: #fff;
+            border-radius: 0;
+            padding: 20px;
+            margin-bottom: 12px;
+            border: 1px solid #edf2f7;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.01);
+        }
+
+        .staff-name {
+            font-size: 1.1rem;
+            font-weight: 850;
+            color: var(--primary);
+        }
+
+        .badge {
+            font-size: 0.65rem;
+            padding: 4px 8px;
+            border-radius: 0;
+            font-weight: 700;
+            background: #f1f5f9;
+        }
+
+        .back-btn {
+            background: none;
+            color: var(--accent);
+            border: none;
+            margin-bottom: 15px;
+            font-weight: 850;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        footer {
+            padding: 40px 20px;
+            text-align: center;
+            background: #fff;
+            margin-top: auto;
+            border-top: 1px solid #edf2f7;
+        }
+
+        .footer-logo {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #1a202c;
+        }
+
+        .logo-highlight {
+            color: var(--jh-blue);
+        }
+
+        .badge-role {
+            background: var(--jh-blue);
+            color: #fff;
+            padding: 3px 8px;
+            border-radius: 0;
+            font-size: 0.7rem;
+            margin-right: 5px;
+        }
+
+        /* 텍스트 입력 영역 */
+        .text-answer-box {
+            width: 100%;
+            padding: 12px;
+            border-radius: 0;
+            border: 1.5px solid #e2e8f0;
+            font-size: 0.9rem;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 90px;
+            color: #2d3748;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+
+        .text-answer-box:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(43,108,176,0.1);
+        }
+
+        .btn-save-text {
+            margin-top: 10px;
+            background: var(--success);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(56,161,105,0.2);
+        }
+
+        /* 질문 카테고리 아코디언 카드 - 10개 문항을 3개 범주로 묶어 접었다 펼 수 있게 한다 */
+        .category-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+
+        .category-header {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 18px 20px;
+            background: #fff;
+            border: none;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .category-header-text {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .category-tag {
+            flex-shrink: 0;
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: #fff;
+            background: var(--jh-blue);
+            padding: 3px 8px;
+        }
+
+        .category-title {
+            font-size: 1rem;
+            font-weight: 850;
+            color: var(--primary);
+        }
+
+        .category-chevron {
+            font-size: 1.2rem;
+            color: #a0aec0;
+            transition: transform 0.25s ease;
+            flex-shrink: 0;
+        }
+
+        .category-card.open .category-chevron {
+            transform: rotate(180deg);
+        }
+
+        .category-body {
+            display: none;
+            padding: 0 16px 16px;
+            border-top: 1px solid #edf2f7;
+        }
+
+        .category-body .report-card {
+            margin-top: 16px;
+            margin-bottom: 0;
+        }
+
+        .category-body .report-card+.report-card {
+            margin-top: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-header-sticky">
+        <header>
+            <div class="header-inner">
+                <span class="main-title" id="display-org-name">준비 중..</span>
+                <span class="sub-title">교육 전 욕구 진단 시스템</span>
+            </div>
+        </header>
+
+        <div class="tabs-container">
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('report', this)">프로젝트 안내</button>
+                <button class="tab-btn" onclick="switchTab('interview', this)">실행 인터뷰</button>
+                <button class="tab-btn" id="tab-analysis-btn" onclick="switchTab('analysis', this)">최종 분석</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loader">
+        <div class="intro-logo">JINHYUN<span class="logo-highlight">.AI</span></div>
+        <div class="intro-sub">사전 진단 시스템</div>
+        <div class="intro-progress-track">
+            <div class="intro-progress-fill" id="introProgressFill"></div>
+        </div>
+        <div id="loader-msg">시스템 환경 구성 중...</div>
+    </div>
+
+    <div class="container">
+        <!-- [TAB 1] 프로젝트 안내 -->
+        <div id="view-report" class="report-section">
+            <div class="report-card">
+                <div class="report-title">💡 스마트워크 교육 전 인터뷰 가이드라인 (사전진단)</div>
+                <p style="font-size:0.95rem; line-height: 1.7; color: #4a5568;">
+                    <strong>장진현 사무국장 (JINHYUN.AI)</strong>
+                </p>
+                <hr style="border: 0; height: 1px; background: #e2e8f0; margin: 15px 0;">
+                <p style="font-size:0.9rem; line-height: 1.6; color: #2d3748; margin-bottom: 10px;">
+                    우리 복지 현장의 가장 비효율적인 모습은 다음과 같습니다. 인터뷰 전 아래 내용을 보시고 본인이 원하는 효율적인 방향도 고민해 보세요.
+                </p>
+                <ul
+                    style="font-size: 0.85rem; line-height: 1.8; color: #4a5568; padding-left: 20px; list-style-type: disc;">
+                    <li><strong>수작업 데이터의 분절과 오류:</strong> 부서마다 엑셀을 따로 관리하며, 취합 시 숫자나 내역이 맞지 않아 검증에 수 시간을 허비합니다.</li>
+                    <li><strong>이중 삼중의 반복 문서 생산:</strong> 개별 관찰, 지출 결의, 일지 작성 등 하나의 이벤트를 여러 양식에 중복으로 텍스트를 옮겨적는 행위가 만연해
+                        있습니다.</li>
+                    <li><strong>디지털 연속성의 단절:</strong> 담당자 퇴사 시 노하우는 USB나 개인 PC에 갇혀 사라지며, 후임자는 처음부터 다시 양식을 만들어야 하는 고통을
+                        겪습니다.</li>
+                    <li><strong>소통의 병목 지연:</strong> 관리자의 부재가 문서 결재의 지연으로 직결되며, 현장 사원이 즉각적인 지침을 받지 못해 업무가 중단됩니다.</li>
+                </ul>
+                <div
+                    style="margin-top: 20px; padding: 15px; background: #ebf8ff; border-radius: 0; border-left: 4px solid var(--jh-blue);">
+                    <small style="color: var(--jh-blue); font-weight: 800;">사전 진단 인터뷰 진행 안내</small>
+                    <p style="font-size: 0.85rem; margin-top: 5px;">본 가이드라인의 문제들을 실무에서 얼마나 겪고 계신지, 아래 단계별 심층 직무 인터뷰를 통해
+                        여러분의 생생한 목소리를 들려주십시오. 이 데이터는 기관의 핵심 맞춤 전략 도출에 직접 사용됩니다.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- [TAB 2] 실행 인터뷰 -->
+        <div id="view-interview-main" style="display:none;">
+            <div id="view-list">
+                <p style="font-size: 0.85rem; color: #718096; margin-bottom: 15px; line-height: 1.5;">
+                    아래에서 인터뷰할 대상자(역할)를 선택해 주세요. 대상자 명단은 DB_Staff 시트에서 직접 관리합니다.
+                </p>
+                <div id="staff-list"></div>
+            </div>
+            <div id="view-interview-detail" style="display:none;">
+                <button class="back-btn" onclick="backToList()">← 처음으로</button>
+                <p style="font-size: 0.85rem; color: #718096; margin-bottom: 18px; line-height: 1.6;">
+                    아래 카드를 클릭하면 해당 주제의 질문들이 펼쳐집니다. 음성이나 텍스트로 자유롭게 답변해 주시면 되고, 모든 질문에 답하지 않으셔도 괜찮습니다.
+                </p>
+                <div id="interview-content"></div>
+            </div>
+        </div>
+
+        <!-- [TAB 3] 최종 분석 - ?admin=1 파라미터로 접속했을 때만 클라이언트에서 보여준다
+             (이 앱의 백엔드는 Google Apps Script 템플릿이 아니라 깃허브의 순수 정적 페이지라
+             서버 쪽에서 미리 숨길 수 없음 - 원래도 보안 목적이 아니라 UI 노출 편의였으므로
+             동일한 수준으로 클라이언트 쪽에서 토글한다). -->
+        <div id="view-analysis" style="display:none;">
+            <div class="report-card">
+                <div class="report-title">🏢 전략 진단 리포트 & 컨설팅 방향 도출</div>
+                <p style="font-size: 0.9rem; color: #718096; margin-bottom: 20px;">
+                    수집된 사전 인터뷰 데이터를 종합하여 강의 방향을 설정합니다.
+                </p>
+                <button id="btn-run-analysis" class="btn btn-primary" onclick="runFinalAnalysis()">🤖 최종 전략 분석 엔진
+                    가동</button>
+                <div id="analysis-result"
+                    style="margin-top: 20px; font-size: 0.9rem; line-height: 1.6; display: none; padding: 20px; background: #f8fafc; border-radius: 0; border: 1px solid #edf2f7; white-space: pre-wrap;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-inner">
+            <div class="footer-logo">JINHYUN<span class="logo-highlight">.AI</span></div>
+            <div style="font-size: 0.65rem; color: #cbd5e0; margin-top: 15px;">© 2026 JINHYUN.AI • ALL RIGHTS RESERVED.
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        // 백엔드(Google Apps Script)는 완전히 분리되어 Google Sheets를 DB로 그대로 쓰고,
+        // 이 정적 페이지는 fetch()로 JSON API(doGet/doPost의 ?action=...)만 호출한다.
+        // 배포 ID가 바뀌면 이 주소만 바꿔주면 된다.
+        const API_BASE = 'https://script.google.com/macros/s/AKfycbwXKsSAps4u833yNvVu5jwQxpC0WklNLXrl3V4No-VU31mxM6RCI8dF59eWsY7y0UdE7A/exec';
+
+        function apiGet(action, params) {
+            const qs = new URLSearchParams(Object.assign({ action }, params || {}));
+            return fetch(API_BASE + '?' + qs.toString()).then(r => r.json());
+        }
+
+        // 프리플라이트(OPTIONS)를 유발하면 Apps Script가 처리하지 못해 요청이 막히므로,
+        // Content-Type은 반드시 text/plain(단순 요청 규격)으로 보낸다. 서버는 doPost(e)에서
+        // e.postData.contents를 JSON.parse해서 읽는다.
+        function apiPost(action, data) {
+            return fetch(API_BASE, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(Object.assign({ action }, data || {}))
+            }).then(r => r.json());
+        }
+
+        const isAdmin = !!new URLSearchParams(location.search).get('admin');
+        if (!isAdmin) {
+            document.getElementById('tab-analysis-btn').remove();
+            document.getElementById('view-analysis').remove();
+        }
+
+        let currentOrgName = "대상 기관";
+        let allStaff = []; let allQuestions = []; let allLogs = [];
+        window.onload = function () { loadData(); };
+
+        // 버튼을 눌러도 반응이 없는 문제는 대부분 콘솔에만 찍히는 JS 오류 때문인데,
+        // 국장님이 개발자 도구를 매번 열어보기 번거로우니 화면에 직접 알림창으로 띄워준다.
+        window.onerror = function (msg, src, line, col, err) {
+            alert('⚠️ 화면 오류가 발생했습니다.\n\n' + msg + '\n(위치: ' + line + '행)\n\n이 내용을 캡처해서 알려주시면 바로 고쳐드리겠습니다.');
+            return false;
+        };
+
+        function switchTab(view, btn) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            // 최종 분석 탭은 admin이 아니면 DOM에서 아예 제거되므로(null일 수 있음) 방어
+            ['view-report', 'view-interview-main', 'view-analysis'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+            if (view === 'report') document.getElementById('view-report').style.display = 'block';
+            else if (view === 'interview') { document.getElementById('view-interview-main').style.display = 'block'; renderList(); }
+            else if (view === 'analysis') { const el = document.getElementById('view-analysis'); if (el) el.style.display = 'block'; }
+        }
+
+        function loadData() {
+            toggleLoader(true, "시스템 초기화 및 기관 정보 확인 중..");
+            apiGet('initialData')
+                .then(data => {
+                    currentOrgName = data.orgName || "대상 기관";
+                    document.getElementById('display-org-name').innerText = currentOrgName;
+                    document.title = currentOrgName + " 사전진단 시스템";
+
+                    allStaff = data.staff; allQuestions = data.questions; allLogs = data.logs;
+                    renderList(); toggleLoader(false);
+                })
+                .catch(err => {
+                    toggleLoader(false);
+                    alert("⚠️ 시스템 접근 불가: " + err);
+                });
+        }
+
+        /** 성명이 채워져 있으면 실명을, 비어 있으면 직급 자체를 응답자 식별자로 사용한다
+         *  (DB_Staff는 이제 앱에서 자동 생성하지 않고 국장님이 시트에서 직접 역할 행을 구성한다). */
+        function staffIdentity(s) { return (s.name && String(s.name).trim()) ? String(s.name).trim() : String(s.role || ''); }
+
+        function renderList() {
+            const list = document.getElementById('staff-list');
+            if (allStaff.length === 0) { list.innerHTML = '<p style="text-align:center; padding:50px; color:#a0aec0;">DB_Staff 시트에 등록된 인터뷰 대상자가 없습니다.</p>'; return; }
+            list.innerHTML = allStaff.map(s => {
+                const identity = staffIdentity(s);
+                const logCount = allLogs.filter(l => l.staffName === identity).length;
+                return `
+                    <div class="staff-card">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                            <div>
+                                <span class="badge-role">${s.role}</span>
+                                <span class="staff-name">${identity}</span>
+                            </div>
+                            <span class="badge">${logCount}개 답변완료</span>
+                        </div>
+                        <button class="btn btn-primary" data-identity="${identity}" onclick="goInterview(this.dataset.identity)">인터뷰 시작</button>
+                    </div>`;
+            }).join('');
+        }
+
+        /** DB_Questions의 '카테고리' 값 기준으로 순서를 유지하며 묶는다(처음 등장한 순서 = 카드 순서).
+         *  카테고리 값이 비어있는 질문은 모두 "기타" 그룹으로 모인다. */
+        function groupQuestionsByCategory(questions) {
+            const order = [];
+            const map = {};
+            questions.forEach(q => {
+                // 시트 셀 서식에 따라 카테고리 값이 문자열이 아닌 경우(숫자/날짜 등)도 있을 수 있어
+                // String()으로 강제 변환 후 처리한다 - "q.category.trim is not a function" 방지.
+                const catText = String(q.category == null ? '' : q.category).trim();
+                const cat = catText || '기타';
+                if (!map[cat]) { map[cat] = []; order.push(cat); }
+                map[cat].push(q);
+            });
+            return order.map(cat => ({ category: cat, items: map[cat] }));
+        }
+
+        function questionCardHtml_(q, name) {
+            const log = allLogs.find(l => l.staffName === name && l.questionText === q.text);
+            const safeQText = String(q.text || '').replace(/'/g, "\\'");
+            const safeName = String(name || '').replace(/'/g, "\\'");
+            return `
+            <div class="report-card">
+                <p style="font-weight:850; margin-bottom:15px;">${q.id}. ${q.text}</p>
+
+                <textarea id="textarea-${q.id}" class="text-answer-box"
+                    placeholder="여기에 답변을 직접 입력해 주세요..."
+                    >${log ? log.transcription : ''}</textarea>
+                <button class="btn btn-save-text" id="save-btn-${q.id}" onclick="saveTextRecord('${q.id}', '${safeName}', '${safeQText}')">
+                    💾 답변 저장
+                </button>
+            </div>`;
+        }
+
+        function toggleCategory(idx) {
+            const card = document.getElementById(`cat-card-${idx}`);
+            const body = document.getElementById(`cat-body-${idx}`);
+            const isOpen = card.classList.toggle('open');
+            body.style.display = isOpen ? 'block' : 'none';
+        }
+
+        /** 카테고리 제목 앞의 "[진단]"/"[준비]"/"[전략]" 같은 대괄호 태그를 파란 배지로 분리해 보여준다.
+         *  태그가 없는 카테고리(예: "기타")는 제목 그대로 표시한다. */
+        function renderCategoryTitle_(category) {
+            const m = String(category).match(/^\[([^\]]+)\]\s*(.*)$/);
+            if (!m) return `<span class="category-title">${category}</span>`;
+            return `<span class="category-tag">${m[1]}</span><span class="category-title">${m[2]}</span>`;
+        }
+
+        function goInterview(identity) {
+            const name = identity;
+            // 질문은 더 이상 대상자별로 나뉘지 않고 DB_Questions 전체를 공통 문항 은행으로 공유한다.
+            // 카테고리별 카드로 묶어 펼쳐보고, 국장님이 실제로 물어볼 질문만 골라 답변하면 된다
+            // (전부 답변할 필요 없음 - 진행률 표시를 넣으면 부담될 수 있어 의도적으로 생략).
+            const groups = groupQuestionsByCategory(allQuestions);
+            const content = document.getElementById('interview-content');
+            content.innerHTML = groups.map((g, idx) => {
+                    return `
+                    <div class="category-card" id="cat-card-${idx}">
+                        <button type="button" class="category-header" onclick="toggleCategory(${idx})">
+                            <span class="category-header-text">
+                                ${renderCategoryTitle_(g.category)}
+                            </span>
+                            <span class="category-chevron">▾</span>
+                        </button>
+                        <div class="category-body" id="cat-body-${idx}">
+                            ${g.items.map(q => questionCardHtml_(q, name)).join('')}
+                        </div>
+                    </div>`;
+                }).join('');
+            document.getElementById('view-list').style.display = 'none';
+            document.getElementById('view-interview-detail').style.display = 'block';
+            window.scrollTo(0, 0);
+        }
+
+        function backToList() { document.getElementById('view-list').style.display = 'block'; document.getElementById('view-interview-detail').style.display = 'none'; renderList(); }
+
+        // 텍스트 답변 저장 (음성 녹음 기능은 폐지 - 텍스트 입력만 지원, AI 분석 없이 그대로 저장)
+        function saveTextRecord(qId, staffName, qText) {
+            const textarea = document.getElementById(`textarea-${qId}`);
+            const text = textarea.value.trim();
+            if (!text) { alert("답변 내용을 입력해 주세요."); return; }
+
+            const saveBtn = document.getElementById(`save-btn-${qId}`);
+            if (saveBtn) { saveBtn.disabled = true; saveBtn.innerText = "⏳ 저장 중..."; }
+
+            apiPost('saveTextRecord', { data: { staffName, questionId: qId, questionText: qText, text } })
+                .then(res => {
+                    if (res.success) {
+                        const uIdx = allLogs.findIndex(l => l.staffName === staffName && l.questionText === qText);
+                        if (uIdx > -1) allLogs[uIdx].transcription = text;
+                        else allLogs.push({ staffName, questionText: qText, transcription: text });
+                        if (saveBtn) { saveBtn.disabled = false; saveBtn.innerText = "✅ 저장 완료"; }
+                    } else {
+                        alert("⚠️ 저장 실패: " + res.error);
+                        if (saveBtn) { saveBtn.disabled = false; saveBtn.innerText = "💾 답변 저장"; }
+                    }
+                })
+                .catch(err => {
+                    alert("⚠️ 서버 오류: " + err);
+                    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerText = "💾 답변 저장"; }
+                });
+        }
+
+        function runFinalAnalysis() {
+            const btn = document.getElementById('btn-run-analysis');
+            const resBox = document.getElementById('analysis-result');
+            btn.disabled = true;
+            btn.innerText = "⏳ 컨설팅 로드맵 AI 분석 중...";
+            resBox.style.display = 'block';
+            resBox.innerHTML = `<i>데이터를 종합하고 장진현 국장님의 분석 시나리오를 구성하고 있습니다. 잠시만 기다려주세요 (최대 1~2분 소요)...</i>`;
+
+            apiPost('runFinalAIAnalysis', { orgName: currentOrgName })
+                .then(res => {
+                    btn.disabled = false;
+                    btn.innerText = "🤖 추가 분석 / 업데이트";
+                    if (res.success) {
+                        resBox.innerHTML = marked.parse(res.report) + `
+                            <div style="margin-top:40px; padding:25px; background:#f0f7ff; border-radius:0; border:1px solid #d0e6ff; text-align:center;">
+                                <p style="font-weight:850; color:#1a365d; margin-bottom:15px;">🏁 분석이 완료되었습니다.</p>
+                                <button id="btn-send-report" class="btn btn-primary" onclick="confirmSendToBoss('${btoa(unescape(encodeURIComponent(res.report)))}')">🚀 장진현 국장님에게 발송합니다</button>
+                                <p id="send-status" style="margin-top:10px; font-size:0.8rem; color:#64748b;"></p>
+                            </div>`;
+                    } else {
+                        resBox.innerHTML = `<span style="color:var(--danger);">⚠️ 오류: ${res.error}</span>`;
+                    }
+                })
+                .catch(err => {
+                    btn.disabled = false;
+                    btn.innerText = "🤖 최종 전략 분석 엔진 가동";
+                    resBox.innerHTML = `<span style="color:var(--danger);">⚠️ 서버 치명적 오류: ${err}</span>`;
+                });
+        }
+
+        function confirmSendToBoss(encodedReport) {
+            const report = decodeURIComponent(escape(atob(encodedReport)));
+            const btn = document.getElementById('btn-send-report');
+            const status = document.getElementById('send-status');
+
+            btn.disabled = true;
+            btn.innerText = "⏳ 시트에 저장 중...";
+            status.innerText = "보고서를 DB_Setup 탭으로 전송하고 있습니다.";
+
+            apiPost('saveAnalysisToSheet', { report })
+                .then(res => {
+                    if (res.success) {
+                        btn.style.background = "var(--success)";
+                        btn.innerText = "✅ 발송 완료 (시트 저장됨)";
+                        status.innerText = "장진현 국장님 시트(DB_Setup)에 성공적으로 기록되었습니다.";
+                    } else {
+                        btn.disabled = false;
+                        btn.innerText = "❌ 재시도 하기";
+                        status.innerText = "저장 실패: " + res.error;
+                    }
+                })
+                .catch(err => {
+                    btn.disabled = false;
+                    btn.innerText = "❌ 재시도 하기";
+                    status.innerText = "저장 실패: " + err;
+                });
+        }
+
+        // 표준 인트로 로딩 화면(가이드라인 7장) - 0%에서 부드럽게 90%까지 올라가다가, 초기 데이터
+        // 로드가 끝나면 즉시 100%로 채운 뒤 0.35초 뒤 페이드아웃한다.
+        const INTRO_STEPS = ['시스템 환경 구성 중...', '기관 정보 확인 중...', '대상자·질문 데이터 불러오는 중...', '화면 구성 중...'];
+        let introStatusTimer = null, introBarTimer = null, introPct = 0, introIdx = 0, introDone = false;
+
+        function toggleLoader(show, msg) {
+            const loader = document.getElementById('loader');
+            if (show) {
+                introDone = false; introPct = 0; introIdx = 0;
+                loader.classList.remove('fade-out');
+                loader.style.display = 'flex';
+                const fill = document.getElementById('introProgressFill');
+                if (fill) fill.style.width = '0%';
+                document.getElementById('loader-msg').innerText = msg || INTRO_STEPS[0];
+
+                clearInterval(introStatusTimer);
+                introStatusTimer = setInterval(() => {
+                    introIdx = (introIdx + 1) % INTRO_STEPS.length;
+                    const el = document.getElementById('loader-msg');
+                    if (el) el.textContent = INTRO_STEPS[introIdx];
+                }, 1200);
+
+                clearInterval(introBarTimer);
+                introBarTimer = setInterval(() => {
+                    if (introPct < 90) {
+                        introPct = Math.min(90, introPct + Math.random() * 14 + 4);
+                        const b = document.getElementById('introProgressFill');
+                        if (b) b.style.width = introPct + '%';
+                    }
+                }, 160);
+            } else {
+                completeIntro();
+            }
+        }
+
+        function completeIntro() {
+            if (introDone) return;
+            introDone = true;
+            clearInterval(introStatusTimer);
+            clearInterval(introBarTimer);
+            const fill = document.getElementById('introProgressFill');
+            const msgEl = document.getElementById('loader-msg');
+            if (fill) fill.style.width = '100%';
+            if (msgEl) msgEl.textContent = '준비 완료!';
+            setTimeout(() => {
+                const loader = document.getElementById('loader');
+                loader.classList.add('fade-out');
+                setTimeout(() => { loader.style.display = 'none'; }, 350);
+            }, 350);
+        }
+    </script>
 </body>
+
 </html>
