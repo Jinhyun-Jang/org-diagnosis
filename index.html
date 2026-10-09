@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>조직진단 솔루션 시스템</title>
+    <!-- 파비콘 (JINHYUN.AI JH 로고) -->
+    <link rel="icon" type="image/x-icon" href="https://drive.google.com/uc?export=view&id=1gzT7i5Oy9voYziHbveCvBavjm5dXWWh7">
+    <link rel="shortcut icon" type="image/x-icon" href="https://drive.google.com/uc?export=view&id=1gzT7i5Oy9voYziHbveCvBavjm5dXWWh7">
+    <link rel="apple-touch-icon" href="https://drive.google.com/uc?export=view&id=1gzT7i5Oy9voYziHbveCvBavjm5dXWWh7">
     <!-- Google Fonts -->
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@800&family=Outfit:wght@500;700;800&display=swap"
@@ -338,14 +342,14 @@
         .text-answer-box:focus {
             outline: none;
             border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(43,108,176,0.1);
+            box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.1);
         }
 
         .btn-save-text {
             margin-top: 10px;
             background: var(--success);
             color: #fff;
-            box-shadow: 0 4px 12px rgba(56,161,105,0.2);
+            box-shadow: 0 4px 12px rgba(56, 161, 105, 0.2);
         }
 
         /* 질문 카테고리 아코디언 카드 - 10개 문항을 3개 범주로 묶어 접었다 펼 수 있게 한다 */
@@ -432,7 +436,9 @@
             <div class="tabs">
                 <button class="tab-btn active" onclick="switchTab('report', this)">프로젝트 안내</button>
                 <button class="tab-btn" onclick="switchTab('interview', this)">실행 인터뷰</button>
-                <button class="tab-btn" id="tab-analysis-btn" onclick="switchTab('analysis', this)">최종 분석</button>
+                <? if (isAdmin) { ?>
+                <button class="tab-btn" onclick="switchTab('analysis', this)">최종 분석</button>
+                <? } ?>
             </div>
         </div>
     </div>
@@ -493,10 +499,8 @@
             </div>
         </div>
 
-        <!-- [TAB 3] 최종 분석 - ?admin=1 파라미터로 접속했을 때만 클라이언트에서 보여준다
-             (이 앱의 백엔드는 Google Apps Script 템플릿이 아니라 깃허브의 순수 정적 페이지라
-             서버 쪽에서 미리 숨길 수 없음 - 원래도 보안 목적이 아니라 UI 노출 편의였으므로
-             동일한 수준으로 클라이언트 쪽에서 토글한다). -->
+        <? if (isAdmin) { ?>
+        <!-- [TAB 3] 최종 분석 - admin@light4u.kr 계정에서만 렌더링됨 -->
         <div id="view-analysis" style="display:none;">
             <div class="report-card">
                 <div class="report-title">🏢 전략 진단 리포트 & 컨설팅 방향 도출</div>
@@ -510,6 +514,7 @@
                 </div>
             </div>
         </div>
+        <? } ?>
     </div>
 
     <footer>
@@ -522,51 +527,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
-        // 백엔드(Google Apps Script)는 완전히 분리되어 Google Sheets를 DB로 그대로 쓰고,
-        // 이 정적 페이지는 fetch()로 JSON API(doGet/doPost의 ?action=...)만 호출한다.
-        // 배포 ID가 바뀌면 이 주소만 바꿔주면 된다.
-        const API_BASE = 'https://script.google.com/macros/s/AKfycbwXKsSAps4u833yNvVu5jwQxpC0WklNLXrl3V4No-VU31mxM6RCI8dF59eWsY7y0UdE7A/exec';
-
-        // Apps Script의 exec→googleusercontent 1회용 리다이렉트가 간헐적으로(관찰상 체감
-        // 절반 정도 빈도) 실패하는 경우가 있어, 실제 오류(JSON이 아닌 응답/네트워크 실패)일 때만
-        // 짧게 두 번 더 재시도한다. 서버가 { success:false, error } 형태로 정상 응답한 "진짜 실패"는
-        // 재시도하지 않고 바로 그대로 돌려준다(무한 재시도로 오류를 감추지 않기 위함).
-        async function fetchJsonWithRetry_(doFetch, attempts) {
-            let lastErr;
-            for (let i = 0; i < (attempts || 3); i++) {
-                try {
-                    const r = await doFetch();
-                    return await r.json();
-                } catch (err) {
-                    lastErr = err;
-                    if (i < (attempts || 3) - 1) await new Promise(res => setTimeout(res, 500 * (i + 1)));
-                }
-            }
-            throw lastErr;
-        }
-
-        function apiGet(action, params) {
-            const qs = new URLSearchParams(Object.assign({ action }, params || {}));
-            return fetchJsonWithRetry_(() => fetch(API_BASE + '?' + qs.toString()));
-        }
-
-        // 프리플라이트(OPTIONS)를 유발하면 Apps Script가 처리하지 못해 요청이 막히므로,
-        // Content-Type은 반드시 text/plain(단순 요청 규격)으로 보낸다. 서버는 doPost(e)에서
-        // e.postData.contents를 JSON.parse해서 읽는다.
-        function apiPost(action, data) {
-            return fetchJsonWithRetry_(() => fetch(API_BASE, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(Object.assign({ action }, data || {}))
-            }));
-        }
-
-        const isAdmin = !!new URLSearchParams(location.search).get('admin');
-        if (!isAdmin) {
-            document.getElementById('tab-analysis-btn').remove();
-            document.getElementById('view-analysis').remove();
-        }
-
         let currentOrgName = "대상 기관";
         let allStaff = []; let allQuestions = []; let allLogs = [];
         window.onload = function () { loadData(); };
@@ -581,7 +541,7 @@
         function switchTab(view, btn) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            // 최종 분석 탭은 admin이 아니면 DOM에서 아예 제거되므로(null일 수 있음) 방어
+            // 최종 분석 탭은 admin 계정이 아니면 서버에서 아예 렌더링되지 않으므로(null일 수 있음) 방어
             ['view-report', 'view-interview-main', 'view-analysis'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
             if (view === 'report') document.getElementById('view-report').style.display = 'block';
             else if (view === 'interview') { document.getElementById('view-interview-main').style.display = 'block'; renderList(); }
@@ -590,8 +550,8 @@
 
         function loadData() {
             toggleLoader(true, "시스템 초기화 및 기관 정보 확인 중..");
-            apiGet('initialData')
-                .then(data => {
+            google.script.run
+                .withSuccessHandler(data => {
                     currentOrgName = data.orgName || "대상 기관";
                     document.getElementById('display-org-name').innerText = currentOrgName;
                     document.title = currentOrgName + " 사전진단 시스템";
@@ -599,10 +559,11 @@
                     allStaff = data.staff; allQuestions = data.questions; allLogs = data.logs;
                     renderList(); toggleLoader(false);
                 })
-                .catch(err => {
+                .withFailureHandler(err => {
                     toggleLoader(false);
                     alert("⚠️ 시스템 접근 불가: " + err);
-                });
+                })
+                .getInitialData();
         }
 
         /** 성명이 채워져 있으면 실명을, 비어 있으면 직급 자체를 응답자 식별자로 사용한다
@@ -685,7 +646,7 @@
             const groups = groupQuestionsByCategory(allQuestions);
             const content = document.getElementById('interview-content');
             content.innerHTML = groups.map((g, idx) => {
-                    return `
+                return `
                     <div class="category-card" id="cat-card-${idx}">
                         <button type="button" class="category-header" onclick="toggleCategory(${idx})">
                             <span class="category-header-text">
@@ -697,7 +658,7 @@
                             ${g.items.map(q => questionCardHtml_(q, name)).join('')}
                         </div>
                     </div>`;
-                }).join('');
+            }).join('');
             document.getElementById('view-list').style.display = 'none';
             document.getElementById('view-interview-detail').style.display = 'block';
             window.scrollTo(0, 0);
@@ -714,8 +675,8 @@
             const saveBtn = document.getElementById(`save-btn-${qId}`);
             if (saveBtn) { saveBtn.disabled = true; saveBtn.innerText = "⏳ 저장 중..."; }
 
-            apiPost('saveTextRecord', { data: { staffName, questionId: qId, questionText: qText, text } })
-                .then(res => {
+            google.script.run
+                .withSuccessHandler(res => {
                     if (res.success) {
                         const uIdx = allLogs.findIndex(l => l.staffName === staffName && l.questionText === qText);
                         if (uIdx > -1) allLogs[uIdx].transcription = text;
@@ -726,10 +687,11 @@
                         if (saveBtn) { saveBtn.disabled = false; saveBtn.innerText = "💾 답변 저장"; }
                     }
                 })
-                .catch(err => {
+                .withFailureHandler(err => {
                     alert("⚠️ 서버 오류: " + err);
                     if (saveBtn) { saveBtn.disabled = false; saveBtn.innerText = "💾 답변 저장"; }
-                });
+                })
+                .saveTextRecord({ staffName, questionId: qId, questionText: qText, text });
         }
 
         function runFinalAnalysis() {
@@ -740,8 +702,8 @@
             resBox.style.display = 'block';
             resBox.innerHTML = `<i>데이터를 종합하고 장진현 국장님의 분석 시나리오를 구성하고 있습니다. 잠시만 기다려주세요 (최대 1~2분 소요)...</i>`;
 
-            apiPost('runFinalAIAnalysis', { orgName: currentOrgName })
-                .then(res => {
+            google.script.run
+                .withSuccessHandler(res => {
                     btn.disabled = false;
                     btn.innerText = "🤖 추가 분석 / 업데이트";
                     if (res.success) {
@@ -755,11 +717,12 @@
                         resBox.innerHTML = `<span style="color:var(--danger);">⚠️ 오류: ${res.error}</span>`;
                     }
                 })
-                .catch(err => {
+                .withFailureHandler(err => {
                     btn.disabled = false;
                     btn.innerText = "🤖 최종 전략 분석 엔진 가동";
                     resBox.innerHTML = `<span style="color:var(--danger);">⚠️ 서버 치명적 오류: ${err}</span>`;
-                });
+                })
+                .runFinalAIAnalysis(currentOrgName);
         }
 
         function confirmSendToBoss(encodedReport) {
@@ -771,8 +734,8 @@
             btn.innerText = "⏳ 시트에 저장 중...";
             status.innerText = "보고서를 DB_Setup 탭으로 전송하고 있습니다.";
 
-            apiPost('saveAnalysisToSheet', { report })
-                .then(res => {
+            google.script.run
+                .withSuccessHandler(res => {
                     if (res.success) {
                         btn.style.background = "var(--success)";
                         btn.innerText = "✅ 발송 완료 (시트 저장됨)";
@@ -783,11 +746,7 @@
                         status.innerText = "저장 실패: " + res.error;
                     }
                 })
-                .catch(err => {
-                    btn.disabled = false;
-                    btn.innerText = "❌ 재시도 하기";
-                    status.innerText = "저장 실패: " + err;
-                });
+                .saveAnalysisToSheet(report);
         }
 
         // 표준 인트로 로딩 화면(가이드라인 7장) - 0%에서 부드럽게 90%까지 올라가다가, 초기 데이터
